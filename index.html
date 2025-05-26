@@ -23,7 +23,10 @@
             --contact-bg: #666666; 
         }
         html { scroll-behavior: smooth; }
-        body { font-family: 'Open Sans', sans-serif; }
+        body { 
+            font-family: 'Open Sans', sans-serif; 
+            overflow-x: hidden; /* Verhindert horizontales Scrollen */
+        }
         h1, h2, h3, h4, h5, h6 { font-family: 'Montserrat', sans-serif; }
         .gradient-bg { background: linear-gradient(135deg, var(--primary-blue) 0%, var(--light-blue) 100%); }
         .text-primary-blue { color: var(--primary-blue); }
@@ -33,8 +36,6 @@
         .bg-dark-gray { background-color: var(--dark-gray); } 
         .bg-contact-section { background-color: var(--contact-bg); }
         
-        /* Desktop Menu Item Styling für Hover-Effekt (Unterstrich) */
-        /* Zielt auf die <a>-Tags und den <button> direkt in der Desktop-Navigation */
         header nav .hidden.md\:flex > a.menu-item, 
         header nav .hidden.md\:flex > div.dropdown-container > button.menu-item {
             position: relative; 
@@ -64,9 +65,8 @@
             width: 100%; 
         }
         
-        /* Dropdown-Menü Styling für "Leistungen" */
         header nav .hidden.md\:flex > div.dropdown-container > div[x-show="open"] {
-          background-color: #004494; /* Blauer Hintergrund für Dropdown */
+          background-color: #004494; 
         }
 
         header nav .hidden.md\:flex > div.dropdown-container > div[x-show="open"] a.dropdown-item {
@@ -76,7 +76,7 @@
 
         header nav .hidden.md\:flex > div.dropdown-container > div[x-show="open"] a.dropdown-item:hover {
           background-color: var(--light-blue) !important; 
-          color: white !important; /* Sicherstellen, dass Text weiß bleibt */
+          color: white !important; 
           transform: translateX(4px); 
         }
 
@@ -151,7 +151,7 @@
             height: 300px; 
         }
 
-        .scroll-mt-custom { scroll-margin-top: 80px; }
+        .scroll-mt-custom { scroll-margin-top: 80px; } /* Höhe des fixierten Headers + etwas Puffer */
 
         .main-content-section, .service-detail-section, .impressum-section, .datenschutz-section {
             transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
@@ -214,7 +214,7 @@
         .prose strong { font-weight: 600; }
     </style>
 </head>
-<body class="bg-gray-100" 
+<body
       x-data="{ 
           mobileMenu: false, 
           cookieBanner: true,
@@ -222,38 +222,42 @@
           init() {
               this.setActiveSectionFromHash();
               window.addEventListener('hashchange', () => this.setActiveSectionFromHash());
-              this.$watch('activeDetailSection', () => this.$nextTick(() => AOS.refresh()));
+              this.$watch('activeDetailSection', (newValue, oldValue) => {
+                  this.$nextTick(() => {
+                    AOS.refresh();
+                    // Wenn eine neue Detailsektion aktiv wird, zum Anfang dieser Sektion scrollen
+                    if (newValue && newValue !== oldValue && document.getElementById(newValue)) {
+                        this.scrollToSection(newValue);
+                    }
+                  });
+              });
           },
           setActiveSectionFromHash() {
               const hash = window.location.hash.replace('#', '');
               if (hash.startsWith('detail-') || hash === 'impressum' || hash === 'datenschutz') { 
                   this.activeDetailSection = hash;
-                  setTimeout(() => {
-                      const element = document.getElementById(hash);
-                      if (element) {
-                          const headerOffset = document.querySelector('header').offsetHeight + 20; 
-                          const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
-                          const offsetPosition = elementPosition - headerOffset;
-                          window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-                      }
-                  }, 100); 
               } else {
                   this.activeDetailSection = '';
+                  // Scrollen zu Ankerpunkten auf der Hauptseite, wenn der Hash nicht leer ist
                   if (hash && document.getElementById(hash)) {
-                      setTimeout(() => {
-                          const element = document.getElementById(hash);
-                          const headerOffset = document.querySelector('header').offsetHeight + 20; 
-                          const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
-                          const offsetPosition = elementPosition - headerOffset;
-                          window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-                      }, 100);
+                      this.scrollToSection(hash);
+                  } else if (!hash) { // Kein Hash, zur Startseite scrollen
+                      this.scrollToSection('home');
                   }
               }
           },
           showDetail(sectionId) {
               this.activeDetailSection = sectionId;
               window.location.hash = sectionId; 
-              setTimeout(() => {
+              // Das Scrollen wird durch den $watch('activeDetailSection') und setActiveSectionFromHash gesteuert
+          },
+          hideDetail(targetHash = 'home') { // Standardmäßig zur 'home' Sektion, wenn keine spezifische angegeben
+              this.activeDetailSection = '';
+              window.location.hash = targetHash; 
+              // Das Scrollen wird durch setActiveSectionFromHash gesteuert
+          },
+          scrollToSection(sectionId) {
+            setTimeout(() => {
                 const element = document.getElementById(sectionId);
                 if (element) {
                     const headerOffset = document.querySelector('header').offsetHeight + 20; 
@@ -261,28 +265,7 @@
                     const offsetPosition = elementPosition - headerOffset;
                     window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
                 }
-              }, 0);
-          },
-          hideDetail(targetHash = 'services-overview') {
-              this.activeDetailSection = '';
-              window.location.hash = targetHash; 
-              setTimeout(() => {
-                const targetElement = document.getElementById(targetHash);
-                if (targetElement) {
-                    const headerOffset = document.querySelector('header').offsetHeight + 20; 
-                    const elementPosition = targetElement.getBoundingClientRect().top + window.pageYOffset;
-                    const offsetPosition = elementPosition - headerOffset;
-                    window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-                } else {
-                   const homeElement = document.getElementById('home');
-                   if(homeElement) {
-                       homeElement.scrollIntoView({behavior: 'smooth'}); 
-                   }
-                }
-              },0);
-          },
-          isMainContentVisible() {
-              return this.activeDetailSection === '';
+            }, 50); // Kleine Verzögerung, um dem DOM Zeit zum Rendern zu geben, besonders bei x-if
           }
       }"> 
     
@@ -302,7 +285,7 @@
     
     <!-- Header -->
     <header class="bg-white shadow-sm fixed top-0 w-full z-40">
-        <nav class="main-navigation max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"> <!-- Klasse .main-navigation hinzugefügt -->
+        <nav class="main-navigation max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex-shrink-0 flex items-center">
                     <a href="#home" @click="hideDetail('home')" aria-label="Zur Startseite">
@@ -326,7 +309,6 @@
                     </a>
                 </div>
                 
-                <!-- Desktop Menu -->
                 <div class="hidden md:flex items-center space-x-1">
                     <a href="#home" @click="hideDetail('home')" class="menu-item text-gray-700 transition px-3 py-2">Start</a>
                     
@@ -357,7 +339,6 @@
                     </a>
                 </div>
                 
-                <!-- Mobile Menu Button -->
                 <div class="md:hidden">
                     <button @click="mobileMenu = !mobileMenu" aria-label="Mobiles Menü öffnen/schließen" class="text-gray-700 hover:text-primary-blue focus:outline-none">
                         <i class="fas fa-bars text-2xl"></i>
@@ -365,7 +346,6 @@
                 </div>
             </div>
             
-            <!-- Mobile Menu -->
             <div x-show="mobileMenu" x-transition class="md:hidden bg-primary-blue">
                 <div class="px-2 pt-2 pb-3 space-y-1">
                     <a href="#home" @click="mobileMenu = false; hideDetail('home')" class="block px-3 py-2 text-gray-200 hover:text-primary-yellow hover:bg-light-blue rounded">Start</a>
@@ -383,272 +363,266 @@
         </nav>
     </header>
 
-    <main>
-        <!-- Hero Section -->
-        <section id="home" x-show="isMainContentVisible()" 
-                 x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
-                 class="relative gradient-bg text-white pt-20 scroll-mt-custom main-content-section" data-aos="fade-in">
-             <div class="network-bg"></div>
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                    <div data-aos="fade-right">
-                        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-                            Ihre IT-Experten für <span class="text-primary-yellow">Premium Services</span> in Leipzig
-                        </h1>
-                        <p class="text-lg md:text-xl mb-8 opacity-90">
-                            Von IT-Support über Sicherheit bis zur KI-Automatisierung - UKNS IT-Premium Services ist Ihr Partner für maßgeschneiderte IT-Lösungen in Leipzig und Umgebung.
-                        </p>
-                        <div class="flex flex-col sm:flex-row gap-4">
-                            <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-8 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow text-center">
-                                Kostenlose Beratung
-                            </a>
-                            <a href="#services-overview" @click="hideDetail('services-overview')" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-primary-blue transition text-center glow-button">
-                                Mehr erfahren
-                            </a>
-                        </div>
-                    </div>
-                    <div data-aos="fade-left" class="relative">
-                        <div class="relative floating">
-                            <img src="Netzwerk-Cloud-Leipzig.jpg" alt="Moderne IT-Infrastruktur und Cloud Lösungen in Leipzig" class="rounded-lg shadow-2xl relative z-10">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Services Overview -->
-        <section id="services-overview" x-show="isMainContentVisible()" 
-                 x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
-                 class="py-20 bg-gray-100 scroll-mt-custom main-content-section" data-aos="fade-in">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-16">
-                    <h2 class="text-4xl md:text-5xl font-bold text-primary-blue mb-4">Unsere Kernkompetenzen für Leipzig</h2>
-                    <p class="text-lg text-gray-600 max-w-3xl mx-auto">
-                        Entdecken Sie unser breites Spektrum an IT-Dienstleistungen, die Ihr Unternehmen in Leipzig und Umgebung voranbringen.
-                    </p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                    <div id="service-it-support-card" class="service-card-item rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="100">
-                        <div class="service-card-icon-wrapper w-24 h-24 bg-primary-yellow rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-tools text-primary-blue text-4xl"></i> </div>
-                        <h3 class="text-2xl font-bold mb-3 text-primary-blue">IT-Service & Support Leipzig</h3>
-                        <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Professionelle Wartung, Helpdesk, Fernwartung und Reparatur für Unternehmen in Leipzig. </p>
-                        <button @click="showDetail('detail-it-support')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
-                    </div>
-                    <div id="service-security-card" class="service-card-item accent-blue rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="200">
-                        <div class="service-card-icon-wrapper w-24 h-24 bg-primary-blue rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-shield-alt text-primary-yellow text-4xl"></i> </div>
-                        <h3 class="text-2xl font-bold mb-3 text-primary-blue">IT-Sicherheit</h3>
-                        <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Umfassender Schutz und Sicherheitskonzepte für Ihre IT-Systeme in Leipzig. </p>
-                        <button @click="showDetail('detail-security')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
-                    </div>
-                    <div id="service-data-recovery-card" class="service-card-item rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="300">
-                        <div class="service-card-icon-wrapper w-24 h-24 bg-primary-yellow rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-database text-primary-blue text-4xl"></i> </div>
-                        <h3 class="text-2xl font-bold mb-3 text-primary-blue">Datenrettung & Backup</h3>
-                        <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Zuverlässige Datenwiederherstellung und Backup-Lösungen für Leipziger Firmen. </p>
-                        <button @click="showDetail('detail-data-recovery')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
-                    </div>
-                    <div id="service-server-solutions-card" class="service-card-item accent-blue rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="400">
-                        <div class="service-card-icon-wrapper w-24 h-24 bg-primary-blue rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-server text-primary-yellow text-4xl"></i> </div>
-                        <h3 class="text-2xl font-bold mb-3 text-primary-blue">Serverlösungen</h3>
-                        <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Maßgeschneiderte Serverinfrastrukturen und Cloud-Services für Leipzig. </p>
-                        <button @click="showDetail('detail-server-solutions')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
-                    </div>
-                    <div id="service-virtualization-card" class="service-card-item rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="100">
-                        <div class="service-card-icon-wrapper w-24 h-24 bg-primary-yellow rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-cloud text-primary-blue text-4xl"></i> </div>
-                        <h3 class="text-2xl font-bold mb-3 text-primary-blue">Virtualisierung</h3>
-                        <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Effiziente Ressourcennutzung durch Virtualisierungstechnologien in Leipzig. </p>
-                        <button @click="showDetail('detail-virtualization')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
-                    </div>
-                    <div id="service-network-card" class="service-card-item accent-blue rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="200">
-                        <div class="service-card-icon-wrapper w-24 h-24 bg-primary-blue rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-network-wired text-primary-yellow text-4xl"></i> </div>
-                        <h3 class="text-2xl font-bold mb-3 text-primary-blue">Netzwerktechnik</h3>
-                        <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Stabile und sichere Netzwerklösungen für Unternehmen in Leipzig. </p>
-                        <button @click="showDetail('detail-network')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
-                    </div>
-                    <div id="service-ai-automation-card" class="service-card-item rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="300">
-                        <div class="service-card-icon-wrapper w-24 h-24 bg-primary-yellow rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-brain text-primary-blue text-4xl"></i> </div>
-                        <h3 class="text-2xl font-bold mb-3 text-primary-blue">KI-Automatisierung</h3>
-                        <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Prozessoptimierung durch künstliche Intelligenz für Leipziger Firmen. </p>
-                        <button @click="showDetail('detail-ai-automation')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
-                    </div>
-                    <div id="service-webdesign-card" class="service-card-item accent-blue rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="400">
-                        <div class="service-card-icon-wrapper w-24 h-24 bg-primary-blue rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-code text-primary-yellow text-4xl"></i> </div>
-                        <h3 class="text-2xl font-bold mb-3 text-primary-blue">Webdesign & Präsenz</h3>
-                        <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Moderner Webauftritt und digitale Sichtbarkeit für Ihr Unternehmen in Leipzig. </p>
-                        <button @click="showDetail('detail-webdesign')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Benefits Section -->
-        <section id="our-benefits" x-show="isMainContentVisible()" 
-                 x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
-                 class="py-16 bg-white scroll-mt-custom main-content-section" data-aos="fade-in">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-12">
-                    <h2 class="text-3xl md:text-4xl font-bold mb-4"> Ihre <span class="text-primary-blue">Vorteile</span> mit UKNS </h2>
-                    <p class="text-lg text-gray-600 max-w-3xl mx-auto"> Profitieren Sie von unserer Erfahrung und unserem Engagement für erstklassige IT-Lösungen in Leipzig. </p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="benefit-card bg-gray-50 rounded-lg p-6 shadow-md blue-accent-box transform transition-transform duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="100">
-                        <div class="benefit-card-icon-wrapper w-16 h-16 bg-primary-yellow rounded-lg flex items-center justify-center mb-4 floating"> <i class="fas fa-headset text-primary-blue text-2xl"></i> </div>
-                        <h3 class="text-xl font-semibold mb-3 text-primary-blue">24/7 Support</h3>
-                        <p class="text-gray-600 text-sm">Rund um die Uhr für Sie erreichbar - auch im Notfall.</p>
-                    </div>
-                    <div class="benefit-card bg-gray-50 rounded-lg p-6 shadow-md accent-box transform transition-transform duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="200">
-                        <div class="benefit-card-icon-wrapper w-16 h-16 bg-primary-blue rounded-lg flex items-center justify-center mb-4 floating" style="animation-delay: 0.5s;"> <i class="fas fa-sync-alt text-white text-2xl"></i> </div>
-                        <h3 class="text-xl font-semibold mb-3 text-primary-blue">Stets Aktuell & Innovativ</h3>
-                        <p class="text-gray-600 text-sm">Neueste Technologien und kontinuierliche Weiterbildung für Leipziger Unternehmen.</p>
-                    </div>
-                    <div class="benefit-card bg-gray-50 rounded-lg p-6 shadow-md blue-accent-box transform transition-transform duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="300">
-                        <div class="benefit-card-icon-wrapper w-16 h-16 bg-primary-yellow rounded-lg flex items-center justify-center mb-4 floating" style="animation-delay: 1s;"> <i class="fas fa-rocket text-primary-blue text-2xl"></i> </div>
-                        <h3 class="text-xl font-semibold mb-3 text-primary-blue">Schnelle Reaktion</h3>
-                        <p class="text-gray-600 text-sm">Kurze Reaktionszeiten und effiziente Problemlösung, direkt in Leipzig.</p>
-                    </div>
-                    <div class="benefit-card bg-gray-50 rounded-lg p-6 shadow-md accent-box transform transition-transform duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="400">
-                        <div class="benefit-card-icon-wrapper w-16 h-16 bg-primary-blue rounded-lg flex items-center justify-center mb-4 floating" style="animation-delay: 1.5s;"> <i class="fas fa-handshake text-white text-2xl"></i> </div>
-                        <h3 class="text-xl font-semibold mb-3 text-primary-blue">Kompetent & Zuverlässig</h3>
-                        <p class="text-gray-600 text-sm">Auf unsere Expertise und Termintreue können Sie sich in Leipzig verlassen.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Health Check Section -->
-        <section id="health-check" x-show="isMainContentVisible()" 
-                 x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
-                 class="py-16 bg-gray-100 scroll-mt-custom main-content-section" data-aos="fade-in">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                    <div data-aos="fade-right">
-                        <h2 class="text-3xl md:text-4xl font-bold mb-6"> Kostenloser <span class="text-primary-blue">IT-Gesundheitscheck</span> für Firmen in Leipzig </h2>
-                        <p class="text-lg text-gray-600 mb-6"> Finden Sie heraus, wie gut Ihre IT-Infrastruktur in Leipzig aufgestellt ist. Unser Check analysiert Ihre Systeme und zeigt Optimierungspotenziale auf. </p>
-                        <ul class="space-y-3 mb-8">
-                            <li class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><span>Sicherheitsanalyse</span></li>
-                            <li class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><span>Performance-Bewertung</span></li>
-                            <li class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><span>Backup-Strategie-Check</span></li>
-                            <li class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><span>Handlungsempfehlungen</span></li>
-                        </ul>
-                        <a href="#contact" @click="hideDetail('contact')" class="bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button"> Jetzt Check anfordern </a>
-                    </div>
-                    <div data-aos="fade-left"> <img src="IT-Analyse-Leipzig-Team.jpg" alt="IT Analyse und Gesundheitscheck für Unternehmen in Leipzig" class="rounded-lg shadow-xl"> </div>
-                </div>
-            </div>
-        </section>
+    <main class="pt-16"> <!-- Padding Top für den fixierten Header -->
 
-        <!-- About Section -->
-        <section id="about" x-show="isMainContentVisible()" 
-                 x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
-                 class="py-16 bg-white scroll-mt-custom main-content-section" data-aos="fade-in">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                    <div data-aos="fade-left" class="order-first lg:order-last"> <img src="UKNS-Team-Leipzig.jpg" alt="Das Team von UKNS IT-Premium Services Leipzig" class="rounded-lg shadow-xl"> </div>
-                    <div data-aos="fade-right">
-                        <h2 class="text-3xl md:text-4xl font-bold mb-6"> Über <span class="text-primary-blue">UKNS IT-Premium Services</span> in Leipzig </h2>
-                        <p class="text-lg text-gray-600 mb-4"> Seit unserer Gründung hat sich UKNS IT-Premium Services als verlässlicher Partner für Unternehmen in Leipzig etabliert. Unsere Mission ist es, durch maßgeschneiderte IT-Lösungen den Erfolg unserer Leipziger Kunden nachhaltig zu sichern. </p>
-                        <p class="text-lg text-gray-600 mb-6"> Wir verstehen die digitalen Herausforderungen und unterstützen Sie dabei, Ihre IT-Infrastruktur in Leipzig zu einem Wettbewerbsvorteil auszubauen. Vertrauen, Kompetenz und Innovation sind unsere Pfeiler. </p>
-                        <ul class="space-y-3 mb-8">
-                            <li class="flex items-start"><i class="fas fa-trophy text-primary-yellow mt-1 mr-3"></i><span>Langjährige Erfahrung in Leipzig</span></li>
-                            <li class="flex items-start"><i class="fas fa-users text-primary-yellow mt-1 mr-3"></i><span>Kundenorientierter Ansatz</span></li>
-                            <li class="flex items-start"><i class="fas fa-lightbulb text-primary-yellow mt-1 mr-3"></i><span>Innovative Lösungen</span></li>
-                        </ul>
-                        <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-8 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow"> Lernen Sie uns kennen </a>
-                    </div>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Contact Section -->
-        <section id="contact" x-show="isMainContentVisible()" 
-                 x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
-                 class="py-16 bg-contact-section text-white scroll-mt-custom main-content-section" data-aos="fade-in">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-12">
-                    <h2 class="text-3xl md:text-4xl font-bold mb-4"> Nehmen Sie <span class="text-primary-yellow">Kontakt</span> mit uns auf </h2>
-                    <p class="text-lg opacity-90 max-w-3xl mx-auto"> Wir freuen uns auf Ihre Anfrage aus Leipzig und Umgebung und beraten Sie gerne individuell. </p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
-                    <div data-aos="fade-right" class="bg-black/20 p-8 rounded-xl shadow-xl backdrop-blur-md"> 
-                        <h3 class="text-2xl font-semibold mb-6 text-primary-yellow">Direkter Draht zu uns</h3>
-                        <div class="space-y-4">
-                            <div class="flex items-center"> <i class="fas fa-phone fa-fw text-primary-yellow mr-3 text-xl"></i> <a href="tel:034124820174" class="hover:text-primary-yellow transition text-gray-200">0341 / 248 201 74</a> </div>
-                            <div class="flex items-center"> <i class="fas fa-envelope fa-fw text-primary-yellow mr-3 text-xl"></i> <a href="mailto:support@ukns.eu" class="hover:text-primary-yellow transition text-gray-200">support@ukns.eu</a> </div>
-                            <div class="flex items-center"> <i class="fas fa-clock fa-fw text-primary-yellow mr-3 text-xl"></i> <span class="text-gray-200">Mo - Fr: 08:00 - 18:00 Uhr</span> </div>
-                             <div class="flex items-start mt-4">
-                                <i class="fas fa-map-marker-alt fa-fw text-primary-yellow mr-3 text-xl mt-1"></i>
-                                <div class="text-gray-200">
-                                    UKNS UG (haftungsbeschränkt)<br>
-                                    Friedrich - Ebert - Str. 85<br>
-                                    04109 Leipzig
+        <template x-if="activeDetailSection === ''">
+            <div id="main-content-wrapper">
+                <!-- Hero Section -->
+                <section id="home" 
+                         class="relative gradient-bg text-white scroll-mt-custom main-content-section" data-aos="fade-in">
+                     <div class="network-bg"></div>
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                            <div data-aos="fade-right">
+                                <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
+                                    Ihre IT-Experten für <span class="text-primary-yellow">Premium Services</span> in Leipzig
+                                </h1>
+                                <p class="text-lg md:text-xl mb-8 opacity-90">
+                                    Von IT-Support über Sicherheit bis zur KI-Automatisierung - UKNS IT-Premium Services ist Ihr Partner für maßgeschneiderte IT-Lösungen in Leipzig und Umgebung.
+                                </p>
+                                <div class="flex flex-col sm:flex-row gap-4">
+                                    <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-8 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow text-center">
+                                        Kostenlose Beratung
+                                    </a>
+                                    <a href="#services-overview" @click="hideDetail('services-overview')" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-primary-blue transition text-center glow-button">
+                                        Mehr erfahren
+                                    </a>
+                                </div>
+                            </div>
+                            <div data-aos="fade-left" class="relative">
+                                <div class="relative floating">
+                                    <img src="Netzwerk-Cloud-Leipzig.jpg" alt="Moderne IT-Infrastruktur und Cloud Lösungen in Leipzig" class="rounded-lg shadow-2xl relative z-10">
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div data-aos="fade-left" class="bg-black/30 p-8 rounded-xl shadow-xl backdrop-blur-md"> 
-                        <h3 class="text-2xl font-semibold mb-6 text-primary-yellow">Schreiben Sie uns eine Nachricht</h3>
-                        <form x-data="{ submitting: false, responseMessage: '', responseStatus: '' }" 
-                              @submit.prevent="
-                                  submitting = true;
-                                  responseMessage = '';
-                                  responseStatus = '';
-                                  fetch('https://mailform.ukns.eu/sendmail.php', {
-                                      method: 'POST',
-                                      body: new FormData($event.target)
-                                  })
-                                  .then(res => res.json())
-                                  .then(data => {
-                                      responseMessage = data.message;
-                                      responseStatus = data.status;
-                                      if (data.status === 'success') {
-                                          $event.target.reset(); 
-                                      }
-                                  })
-                                  .catch(error => {
-                                      responseMessage = 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
-                                      responseStatus = 'error';
-                                      console.error('Error:', error);
-                                  })
-                                  .finally(() => submitting = false)
-                              " class="space-y-6">
-                        
-                            <div x-show="responseMessage" 
-                                 :class="{ 'bg-green-100 border-green-400 text-green-700': responseStatus === 'success', 'bg-red-100 border-red-400 text-red-700': responseStatus === 'error' }" 
-                                 class="border px-4 py-3 rounded relative" role="alert">
-                                <span class="block sm:inline" x-text="responseMessage"></span>
+                </section>
+                
+                <!-- Services Overview -->
+                <section id="services-overview" 
+                         class="py-20 bg-gray-100 scroll-mt-custom main-content-section" data-aos="fade-in">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="text-center mb-16">
+                            <h2 class="text-4xl md:text-5xl font-bold text-primary-blue mb-4">Unsere Kernkompetenzen für Leipzig</h2>
+                            <p class="text-lg text-gray-600 max-w-3xl mx-auto">
+                                Entdecken Sie unser breites Spektrum an IT-Dienstleistungen, die Ihr Unternehmen in Leipzig und Umgebung voranbringen.
+                            </p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            <div id="service-it-support-card" class="service-card-item rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="100">
+                                <div class="service-card-icon-wrapper w-24 h-24 bg-primary-yellow rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-tools text-primary-blue text-4xl"></i> </div>
+                                <h3 class="text-2xl font-bold mb-3 text-primary-blue">IT-Service & Support Leipzig</h3>
+                                <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Professionelle Wartung, Helpdesk, Fernwartung und Reparatur für Unternehmen in Leipzig. </p>
+                                <button @click="showDetail('detail-it-support')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
                             </div>
-                        
-                            <div> 
-                                <label for="name" class="block text-sm font-medium text-gray-300 opacity-90">Vollständiger Name</label> 
-                                <input type="text" name="name" id="name" autocomplete="name" required class="mt-1 block w-full px-4 py-3 bg-white/10 border border-white/40 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-yellow focus:border-primary-yellow sm:text-sm text-white placeholder-gray-400 transition" placeholder="Max Mustermann"> 
+                            <div id="service-security-card" class="service-card-item accent-blue rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="200">
+                                <div class="service-card-icon-wrapper w-24 h-24 bg-primary-blue rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-shield-alt text-primary-yellow text-4xl"></i> </div>
+                                <h3 class="text-2xl font-bold mb-3 text-primary-blue">IT-Sicherheit</h3>
+                                <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Umfassender Schutz und Sicherheitskonzepte für Ihre IT-Systeme in Leipzig. </p>
+                                <button @click="showDetail('detail-security')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
                             </div>
-                            <div> 
-                                <label for="email" class="block text-sm font-medium text-gray-300 opacity-90">E-Mail-Adresse</label> 
-                                <input type="email" name="email" id="email" autocomplete="email" required class="mt-1 block w-full px-4 py-3 bg-white/10 border border-white/40 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-yellow focus:border-primary-yellow sm:text-sm text-white placeholder-gray-400 transition" placeholder="max.mustermann@example.com"> 
+                            <div id="service-data-recovery-card" class="service-card-item rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="300">
+                                <div class="service-card-icon-wrapper w-24 h-24 bg-primary-yellow rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-database text-primary-blue text-4xl"></i> </div>
+                                <h3 class="text-2xl font-bold mb-3 text-primary-blue">Datenrettung & Backup</h3>
+                                <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Zuverlässige Datenwiederherstellung und Backup-Lösungen für Leipziger Firmen. </p>
+                                <button @click="showDetail('detail-data-recovery')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
                             </div>
-                            <div> 
-                                <label for="message" class="block text-sm font-medium text-gray-300 opacity-90">Nachricht</label> 
-                                <textarea id="message" name="message" rows="4" required class="mt-1 block w-full px-4 py-3 bg-white/10 border border-white/40 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-yellow focus:border-primary-yellow sm:text-sm text-white placeholder-gray-400 transition" placeholder="Ihre Nachricht an uns..."></textarea> 
+                            <div id="service-server-solutions-card" class="service-card-item accent-blue rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="400">
+                                <div class="service-card-icon-wrapper w-24 h-24 bg-primary-blue rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-server text-primary-yellow text-4xl"></i> </div>
+                                <h3 class="text-2xl font-bold mb-3 text-primary-blue">Serverlösungen</h3>
+                                <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Maßgeschneiderte Serverinfrastrukturen und Cloud-Services für Leipzig. </p>
+                                <button @click="showDetail('detail-server-solutions')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
                             </div>
-                            <div> 
-                                <button type="submit" :disabled="submitting" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-base font-medium text-primary-blue bg-primary-yellow hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-contact-section focus:ring-primary-yellow transition glow-button yellow-glow disabled:opacity-50"> 
-                                    <span x-show="!submitting">Nachricht senden</span>
-                                    <span x-show="submitting">Sende...</span>
-                                </button> 
+                            <div id="service-virtualization-card" class="service-card-item rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="100">
+                                <div class="service-card-icon-wrapper w-24 h-24 bg-primary-yellow rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-cloud text-primary-blue text-4xl"></i> </div>
+                                <h3 class="text-2xl font-bold mb-3 text-primary-blue">Virtualisierung</h3>
+                                <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Effiziente Ressourcennutzung durch Virtualisierungstechnologien in Leipzig. </p>
+                                <button @click="showDetail('detail-virtualization')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
                             </div>
-                        </form>
+                            <div id="service-network-card" class="service-card-item accent-blue rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="200">
+                                <div class="service-card-icon-wrapper w-24 h-24 bg-primary-blue rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-network-wired text-primary-yellow text-4xl"></i> </div>
+                                <h3 class="text-2xl font-bold mb-3 text-primary-blue">Netzwerktechnik</h3>
+                                <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Stabile und sichere Netzwerklösungen für Unternehmen in Leipzig. </p>
+                                <button @click="showDetail('detail-network')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
+                            </div>
+                            <div id="service-ai-automation-card" class="service-card-item rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="300">
+                                <div class="service-card-icon-wrapper w-24 h-24 bg-primary-yellow rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-brain text-primary-blue text-4xl"></i> </div>
+                                <h3 class="text-2xl font-bold mb-3 text-primary-blue">KI-Automatisierung</h3>
+                                <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Prozessoptimierung durch künstliche Intelligenz für Leipziger Firmen. </p>
+                                <button @click="showDetail('detail-ai-automation')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
+                            </div>
+                            <div id="service-webdesign-card" class="service-card-item accent-blue rounded-xl p-8 flex flex-col items-center text-center shadow-lg scroll-mt-custom" data-aos="fade-up" data-aos-delay="400">
+                                <div class="service-card-icon-wrapper w-24 h-24 bg-primary-blue rounded-full flex items-center justify-center mb-6 shadow-md"> <i class="fas fa-code text-primary-yellow text-4xl"></i> </div>
+                                <h3 class="text-2xl font-bold mb-3 text-primary-blue">Webdesign & Präsenz</h3>
+                                <p class="text-gray-600 mb-6 flex-grow text-sm leading-relaxed"> Moderner Webauftritt und digitale Sichtbarkeit für Ihr Unternehmen in Leipzig. </p>
+                                <button @click="showDetail('detail-webdesign')" class="mt-auto inline-block bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-light-blue transition glow-button"> Details </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </section>
+                </section>
+                
+                <!-- Benefits Section -->
+                <section id="our-benefits" 
+                         class="py-16 bg-white scroll-mt-custom main-content-section" data-aos="fade-in">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="text-center mb-12">
+                            <h2 class="text-3xl md:text-4xl font-bold mb-4"> Ihre <span class="text-primary-blue">Vorteile</span> mit UKNS </h2>
+                            <p class="text-lg text-gray-600 max-w-3xl mx-auto"> Profitieren Sie von unserer Erfahrung und unserem Engagement für erstklassige IT-Lösungen in Leipzig. </p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div class="benefit-card bg-gray-50 rounded-lg p-6 shadow-md blue-accent-box transform transition-transform duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="100">
+                                <div class="benefit-card-icon-wrapper w-16 h-16 bg-primary-yellow rounded-lg flex items-center justify-center mb-4 floating"> <i class="fas fa-headset text-primary-blue text-2xl"></i> </div>
+                                <h3 class="text-xl font-semibold mb-3 text-primary-blue">24/7 Support</h3>
+                                <p class="text-gray-600 text-sm">Rund um die Uhr für Sie erreichbar - auch im Notfall.</p>
+                            </div>
+                            <div class="benefit-card bg-gray-50 rounded-lg p-6 shadow-md accent-box transform transition-transform duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="200">
+                                <div class="benefit-card-icon-wrapper w-16 h-16 bg-primary-blue rounded-lg flex items-center justify-center mb-4 floating" style="animation-delay: 0.5s;"> <i class="fas fa-sync-alt text-white text-2xl"></i> </div>
+                                <h3 class="text-xl font-semibold mb-3 text-primary-blue">Stets Aktuell & Innovativ</h3>
+                                <p class="text-gray-600 text-sm">Neueste Technologien und kontinuierliche Weiterbildung für Leipziger Unternehmen.</p>
+                            </div>
+                            <div class="benefit-card bg-gray-50 rounded-lg p-6 shadow-md blue-accent-box transform transition-transform duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="300">
+                                <div class="benefit-card-icon-wrapper w-16 h-16 bg-primary-yellow rounded-lg flex items-center justify-center mb-4 floating" style="animation-delay: 1s;"> <i class="fas fa-rocket text-primary-blue text-2xl"></i> </div>
+                                <h3 class="text-xl font-semibold mb-3 text-primary-blue">Schnelle Reaktion</h3>
+                                <p class="text-gray-600 text-sm">Kurze Reaktionszeiten und effiziente Problemlösung, direkt in Leipzig.</p>
+                            </div>
+                            <div class="benefit-card bg-gray-50 rounded-lg p-6 shadow-md accent-box transform transition-transform duration-300 hover:scale-105" data-aos="fade-up" data-aos-delay="400">
+                                <div class="benefit-card-icon-wrapper w-16 h-16 bg-primary-blue rounded-lg flex items-center justify-center mb-4 floating" style="animation-delay: 1.5s;"> <i class="fas fa-handshake text-white text-2xl"></i> </div>
+                                <h3 class="text-xl font-semibold mb-3 text-primary-blue">Kompetent & Zuverlässig</h3>
+                                <p class="text-gray-600 text-sm">Auf unsere Expertise und Termintreue können Sie sich in Leipzig verlassen.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Health Check Section -->
+                <section id="health-check" 
+                         class="py-16 bg-gray-100 scroll-mt-custom main-content-section" data-aos="fade-in">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                            <div data-aos="fade-right">
+                                <h2 class="text-3xl md:text-4xl font-bold mb-6"> Kostenloser <span class="text-primary-blue">IT-Gesundheitscheck</span> für Firmen in Leipzig </h2>
+                                <p class="text-lg text-gray-600 mb-6"> Finden Sie heraus, wie gut Ihre IT-Infrastruktur in Leipzig aufgestellt ist. Unser Check analysiert Ihre Systeme und zeigt Optimierungspotenziale auf. </p>
+                                <ul class="space-y-3 mb-8">
+                                    <li class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><span>Sicherheitsanalyse</span></li>
+                                    <li class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><span>Performance-Bewertung</span></li>
+                                    <li class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><span>Backup-Strategie-Check</span></li>
+                                    <li class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><span>Handlungsempfehlungen</span></li>
+                                </ul>
+                                <a href="#contact" @click="hideDetail('contact')" class="bg-primary-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button"> Jetzt Check anfordern </a>
+                            </div>
+                            <div data-aos="fade-left"> <img src="IT-Analyse-Leipzig-Team.jpg" alt="IT Analyse und Gesundheitscheck für Unternehmen in Leipzig" class="rounded-lg shadow-xl"> </div>
+                        </div>
+                    </div>
+                </section>
 
-        <div id="service-detail-container" class="pt-16"> 
-            <section id="detail-it-support" x-show="activeDetailSection === 'detail-it-support'" 
+                <!-- About Section -->
+                <section id="about" 
+                         class="py-16 bg-white scroll-mt-custom main-content-section" data-aos="fade-in">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                            <div data-aos="fade-left" class="order-first lg:order-last"> <img src="UKNS-Team-Leipzig.jpg" alt="Das Team von UKNS IT-Premium Services Leipzig" class="rounded-lg shadow-xl"> </div>
+                            <div data-aos="fade-right">
+                                <h2 class="text-3xl md:text-4xl font-bold mb-6"> Über <span class="text-primary-blue">UKNS IT-Premium Services</span> in Leipzig </h2>
+                                <p class="text-lg text-gray-600 mb-4"> Seit unserer Gründung hat sich UKNS IT-Premium Services als verlässlicher Partner für Unternehmen in Leipzig etabliert. Unsere Mission ist es, durch maßgeschneiderte IT-Lösungen den Erfolg unserer Leipziger Kunden nachhaltig zu sichern. </p>
+                                <p class="text-lg text-gray-600 mb-6"> Wir verstehen die digitalen Herausforderungen und unterstützen Sie dabei, Ihre IT-Infrastruktur in Leipzig zu einem Wettbewerbsvorteil auszubauen. Vertrauen, Kompetenz und Innovation sind unsere Pfeiler. </p>
+                                <ul class="space-y-3 mb-8">
+                                    <li class="flex items-start"><i class="fas fa-trophy text-primary-yellow mt-1 mr-3"></i><span>Langjährige Erfahrung in Leipzig</span></li>
+                                    <li class="flex items-start"><i class="fas fa-users text-primary-yellow mt-1 mr-3"></i><span>Kundenorientierter Ansatz</span></li>
+                                    <li class="flex items-start"><i class="fas fa-lightbulb text-primary-yellow mt-1 mr-3"></i><span>Innovative Lösungen</span></li>
+                                </ul>
+                                <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-8 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow"> Lernen Sie uns kennen </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Contact Section -->
+                <section id="contact" 
+                         class="py-16 bg-contact-section text-white scroll-mt-custom main-content-section" data-aos="fade-in">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="text-center mb-12">
+                            <h2 class="text-3xl md:text-4xl font-bold mb-4"> Nehmen Sie <span class="text-primary-yellow">Kontakt</span> mit uns auf </h2>
+                            <p class="text-lg opacity-90 max-w-3xl mx-auto"> Wir freuen uns auf Ihre Anfrage aus Leipzig und Umgebung und beraten Sie gerne individuell. </p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
+                            <div data-aos="fade-right" class="bg-black/20 p-8 rounded-xl shadow-xl backdrop-blur-md"> 
+                                <h3 class="text-2xl font-semibold mb-6 text-primary-yellow">Direkter Draht zu uns</h3>
+                                <div class="space-y-4">
+                                    <div class="flex items-center"> <i class="fas fa-phone fa-fw text-primary-yellow mr-3 text-xl"></i> <a href="tel:034124820174" class="hover:text-primary-yellow transition text-gray-200">0341 / 248 201 74</a> </div>
+                                    <div class="flex items-center"> <i class="fas fa-envelope fa-fw text-primary-yellow mr-3 text-xl"></i> <a href="mailto:support@ukns.eu" class="hover:text-primary-yellow transition text-gray-200">support@ukns.eu</a> </div>
+                                    <div class="flex items-center"> <i class="fas fa-clock fa-fw text-primary-yellow mr-3 text-xl"></i> <span class="text-gray-200">Mo - Fr: 08:00 - 18:00 Uhr</span> </div>
+                                     <div class="flex items-start mt-4">
+                                        <i class="fas fa-map-marker-alt fa-fw text-primary-yellow mr-3 text-xl mt-1"></i>
+                                        <div class="text-gray-200">
+                                            UKNS UG (haftungsbeschränkt)<br>
+                                            Friedrich - Ebert - Str. 85<br>
+                                            04109 Leipzig
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div data-aos="fade-left" class="bg-black/30 p-8 rounded-xl shadow-xl backdrop-blur-md"> 
+                                <h3 class="text-2xl font-semibold mb-6 text-primary-yellow">Schreiben Sie uns eine Nachricht</h3>
+                                <form x-data="{ submitting: false, responseMessage: '', responseStatus: '' }" 
+                                      @submit.prevent="
+                                          submitting = true;
+                                          responseMessage = '';
+                                          responseStatus = '';
+                                          fetch('https://mailform.ukns.eu/sendmail.php', {
+                                              method: 'POST',
+                                              body: new FormData($event.target)
+                                          })
+                                          .then(res => res.json())
+                                          .then(data => {
+                                              responseMessage = data.message;
+                                              responseStatus = data.status;
+                                              if (data.status === 'success') {
+                                                  $event.target.reset(); 
+                                              }
+                                          })
+                                          .catch(error => {
+                                              responseMessage = 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
+                                              responseStatus = 'error';
+                                              console.error('Error:', error);
+                                          })
+                                          .finally(() => submitting = false)
+                                      " class="space-y-6">
+                                
+                                    <div x-show="responseMessage" 
+                                         :class="{ 'bg-green-100 border-green-400 text-green-700': responseStatus === 'success', 'bg-red-100 border-red-400 text-red-700': responseStatus === 'error' }" 
+                                         class="border px-4 py-3 rounded relative" role="alert">
+                                        <span class="block sm:inline" x-text="responseMessage"></span>
+                                    </div>
+                                
+                                    <div> 
+                                        <label for="name" class="block text-sm font-medium text-gray-300 opacity-90">Vollständiger Name</label> 
+                                        <input type="text" name="name" id="name" autocomplete="name" required class="mt-1 block w-full px-4 py-3 bg-white/10 border border-white/40 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-yellow focus:border-primary-yellow sm:text-sm text-white placeholder-gray-400 transition" placeholder="Max Mustermann"> 
+                                    </div>
+                                    <div> 
+                                        <label for="email" class="block text-sm font-medium text-gray-300 opacity-90">E-Mail-Adresse</label> 
+                                        <input type="email" name="email" id="email" autocomplete="email" required class="mt-1 block w-full px-4 py-3 bg-white/10 border border-white/40 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-yellow focus:border-primary-yellow sm:text-sm text-white placeholder-gray-400 transition" placeholder="max.mustermann@example.com"> 
+                                    </div>
+                                    <div> 
+                                        <label for="message" class="block text-sm font-medium text-gray-300 opacity-90">Nachricht</label> 
+                                        <textarea id="message" name="message" rows="4" required class="mt-1 block w-full px-4 py-3 bg-white/10 border border-white/40 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-yellow focus:border-primary-yellow sm:text-sm text-white placeholder-gray-400 transition" placeholder="Ihre Nachricht an uns..."></textarea> 
+                                    </div>
+                                    <div> 
+                                        <button type="submit" :disabled="submitting" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-base font-medium text-primary-blue bg-primary-yellow hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-contact-section focus:ring-primary-yellow transition glow-button yellow-glow disabled:opacity-50"> 
+                                            <span x-show="!submitting">Nachricht senden</span>
+                                            <span x-show="submitting">Sende...</span>
+                                        </button> 
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </template>
+
+        <!-- Detail Sections -->
+        <template x-if="activeDetailSection === 'detail-it-support'">
+            <section id="detail-it-support" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="service-detail-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -693,8 +667,10 @@
                     </div>
                 </div>
             </section>
+        </template>
 
-            <section id="detail-security" x-show="activeDetailSection === 'detail-security'" 
+        <template x-if="activeDetailSection === 'detail-security'">
+            <section id="detail-security" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="service-detail-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -702,7 +678,7 @@
                      <button @click="hideDetail('services-overview')" class="mb-8 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-blue hover:bg-light-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue glow-button">
                         <i class="fas fa-arrow-left mr-2"></i> Zurück zur Leistungsübersicht
                     </button>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start"> <!-- Geändert auf items-start für bessere Bildausrichtung bei unterschiedlich langem Text -->
                         <div class="md:col-span-1" data-aos="fade-right">
                             <img src="IT-Sicherheit-Leipzig-Cloud.jpg" alt="IT-Sicherheit und Cloud Security für Unternehmen in Leipzig" class="rounded-lg shadow-xl w-full h-full object-cover sticky top-24 detail-image-sticky">
                         </div>
@@ -720,13 +696,15 @@
                                 <li>Datenschutzkonformität (DSGVO-Beratung)</li>
                                 <li>Regelmäßige Sicherheitsaudits und Penetrationstests</li>
                             </ul>
-                            <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Sicherheitsberatung in Leipzig</a>
+                            <a href="#contact" @click="hideDetail('contact')" class="mt-6 inline-block bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Sicherheitsberatung in Leipzig</a>
                         </div>
                     </div>
                 </div>
             </section>
+        </template>
 
-            <section id="detail-data-recovery" x-show="activeDetailSection === 'detail-data-recovery'" 
+        <template x-if="activeDetailSection === 'detail-data-recovery'">
+            <section id="detail-data-recovery" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="service-detail-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -734,7 +712,7 @@
                     <button @click="hideDetail('services-overview')" class="mb-8 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-blue hover:bg-light-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue glow-button">
                         <i class="fas fa-arrow-left mr-2"></i> Zurück zur Leistungsübersicht
                     </button>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                         <div class="md:col-span-1" data-aos="fade-right">
                             <img src="Datenrettung-Backup-Leipzig.jpg" alt="Datenrettung und Backup Service für Firmen in Leipzig" class="rounded-lg shadow-xl w-full h-full object-cover sticky top-24 detail-image-sticky">
                         </div>
@@ -752,13 +730,15 @@
                                 <li>Cloud-Backup-Lösungen und Desaster-Recovery-Planung</li>
                                 <li>Regelmäßige Überprüfung der Backup-Integrität</li>
                             </ul>
-                            <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Backup-Strategie für Leipzig</a>
+                            <a href="#contact" @click="hideDetail('contact')" class="mt-6 inline-block bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Backup-Strategie für Leipzig</a>
                         </div>
                     </div>
                 </div>
             </section>
-
-            <section id="detail-server-solutions" x-show="activeDetailSection === 'detail-server-solutions'" 
+        </template>
+        
+        <template x-if="activeDetailSection === 'detail-server-solutions'">
+            <section id="detail-server-solutions" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="service-detail-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -766,7 +746,7 @@
                     <button @click="hideDetail('services-overview')" class="mb-8 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-blue hover:bg-light-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue glow-button">
                         <i class="fas fa-arrow-left mr-2"></i> Zurück zur Leistungsübersicht
                     </button>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                         <div class="md:col-span-1" data-aos="fade-right">
                             <img src="Serverloesungen-Leipzig-Rack.jpg" alt="Moderne Serverlösungen und Server Racks in Leipzig" class="rounded-lg shadow-xl w-full h-full object-cover sticky top-24 detail-image-sticky">
                         </div>
@@ -784,13 +764,15 @@
                                 <li>Server-Wartung, Monitoring und Performance-Optimierung</li>
                                 <li>Migration bestehender Serverlandschaften</li>
                             </ul>
-                            <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Serverberatung in Leipzig</a>
+                            <a href="#contact" @click="hideDetail('contact')" class="mt-6 inline-block bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Serverberatung in Leipzig</a>
                         </div>
                     </div>
                 </div>
             </section>
+        </template>
 
-            <section id="detail-virtualization" x-show="activeDetailSection === 'detail-virtualization'" 
+        <template x-if="activeDetailSection === 'detail-virtualization'">
+            <section id="detail-virtualization" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="service-detail-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -798,7 +780,7 @@
                     <button @click="hideDetail('services-overview')" class="mb-8 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-blue hover:bg-light-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue glow-button">
                         <i class="fas fa-arrow-left mr-2"></i> Zurück zur Leistungsübersicht
                     </button>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                         <div class="md:col-span-1" data-aos="fade-right">
                             <img src="Virtualisierung-Leipzig-Stadt.jpg" alt="IT-Virtualisierung Service und Lösungen für Leipzig" class="rounded-lg shadow-xl w-full h-full object-cover sticky top-24 detail-image-sticky">
                         </div>
@@ -816,13 +798,15 @@
                                 <li>Erhöhung der Ausfallsicherheit und Flexibilität</li>
                                 <li>Beratung und Implementierung von Container-Technologien</li>
                             </ul>
-                            <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Virtualisierung für Leipzig anfragen</a>
+                            <a href="#contact" @click="hideDetail('contact')" class="mt-6 inline-block bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Virtualisierung für Leipzig anfragen</a>
                         </div>
                     </div>
                 </div>
             </section>
+        </template>
 
-            <section id="detail-network" x-show="activeDetailSection === 'detail-network'" 
+        <template x-if="activeDetailSection === 'detail-network'">
+            <section id="detail-network" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="service-detail-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -830,7 +814,7 @@
                     <button @click="hideDetail('services-overview')" class="mb-8 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-blue hover:bg-light-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue glow-button">
                         <i class="fas fa-arrow-left mr-2"></i> Zurück zur Leistungsübersicht
                     </button>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                         <div class="md:col-span-1" data-aos="fade-right">
                             <img src="Netzwerktechnik-Leipzig-Karte.jpg" alt="Professionelle Netzwerktechnik und Infrastruktur in Leipzig" class="rounded-lg shadow-xl w-full h-full object-cover sticky top-24 detail-image-sticky">
                         </div>
@@ -848,13 +832,15 @@
                                 <li>Firewall-Konfiguration und Sicherheitsmanagement</li>
                                 <li>Einrichtung und Betreuung von VPN-Lösungen</li>
                             </ul>
-                            <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Netzwerklösung für Leipzig</a>
+                            <a href="#contact" @click="hideDetail('contact')" class="mt-6 inline-block bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Netzwerklösung für Leipzig</a>
                         </div>
                     </div>
                 </div>
             </section>
+        </template>
 
-            <section id="detail-ai-automation" x-show="activeDetailSection === 'detail-ai-automation'" 
+        <template x-if="activeDetailSection === 'detail-ai-automation'">
+            <section id="detail-ai-automation" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="service-detail-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -862,7 +848,7 @@
                     <button @click="hideDetail('services-overview')" class="mb-8 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-blue hover:bg-light-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue glow-button">
                         <i class="fas fa-arrow-left mr-2"></i> Zurück zur Leistungsübersicht
                     </button>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                         <div class="md:col-span-1" data-aos="fade-right">
                             <img src="KI-Automatisierung-Leipzig-Buero.jpg" alt="KI und Automatisierungslösungen für Unternehmen in Leipzig" class="rounded-lg shadow-xl w-full h-full object-cover sticky top-24 detail-image-sticky">
                         </div>
@@ -880,13 +866,15 @@
                                 <li>Entwicklung und Integration von KI-basierten Chatbots</li>
                                 <li>KI-gestützte Datenanalyse und Entscheidungsunterstützung</li>
                             </ul>
-                            <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">KI-Beratung in Leipzig</a>
+                            <a href="#contact" @click="hideDetail('contact')" class="mt-6 inline-block bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">KI-Beratung in Leipzig</a>
                         </div>
                     </div>
                 </div>
             </section>
+        </template>
 
-            <section id="detail-webdesign" x-show="activeDetailSection === 'detail-webdesign'" 
+        <template x-if="activeDetailSection === 'detail-webdesign'">
+            <section id="detail-webdesign" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="service-detail-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -894,7 +882,7 @@
                     <button @click="hideDetail('services-overview')" class="mb-8 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-blue hover:bg-light-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue glow-button">
                         <i class="fas fa-arrow-left mr-2"></i> Zurück zur Leistungsübersicht
                     </button>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                         <div class="md:col-span-1" data-aos="fade-right">
                             <img src="Webdesign-Leipzig-Arbeitsplatz.jpg" alt="Professionelles Webdesign und Webentwicklung aus Leipzig" class="rounded-lg shadow-xl w-full h-full object-cover sticky top-24 detail-image-sticky">
                         </div>
@@ -912,13 +900,15 @@
                                 <li>Suchmaschinenoptimierung (SEO) für lokale Sichtbarkeit in Leipzig</li>
                                 <li>Erstellung und Betreuung von E-Commerce-Shops</li>
                             </ul>
-                            <a href="#contact" @click="hideDetail('contact')" class="bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Webdesign für Leipzig anfragen</a>
+                            <a href="#contact" @click="hideDetail('contact')" class="mt-6 inline-block bg-primary-yellow text-primary-blue px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition glow-button yellow-glow">Webdesign für Leipzig anfragen</a>
                         </div>
                     </div>
                 </div>
             </section>
+        </template>
 
-            <section id="impressum" x-show="activeDetailSection === 'impressum'" 
+        <template x-if="activeDetailSection === 'impressum'">
+            <section id="impressum" 
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="impressum-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -975,8 +965,10 @@
                     </div>
                 </div>
             </section>
+        </template>
 
-            <section id="datenschutz" x-show="activeDetailSection === 'datenschutz'"
+        <template x-if="activeDetailSection === 'datenschutz'">
+            <section id="datenschutz"
                      x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform scale-95" x-transition:enter-end="opacity-100 transform scale-100"
                      x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-95"
                      class="datenschutz-section py-16 bg-white scroll-mt-custom" data-aos="fade-in">
@@ -1083,8 +1075,8 @@
                     </div>
                 </div>
             </section>
+        </template>
 
-        </div> 
     </main>
 
     <footer class="bg-dark-gray text-gray-300 py-12"> 
